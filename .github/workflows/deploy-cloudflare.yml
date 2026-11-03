@@ -15,6 +15,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - name: Check out source backup
         uses: actions/checkout@v4
@@ -41,7 +42,7 @@ jobs:
           else
             echo "Standard ZIP check failed; attempting ZIP central-directory recovery"
             rm -f /tmp/KARBON-source-recovered.zip
-            printf 'e\n' | timeout 30s zip -FF /tmp/KARBON-source.zip --out /tmp/KARBON-source-recovered.zip || true
+            yes e | timeout 30s zip -FF /tmp/KARBON-source.zip --out /tmp/KARBON-source-recovered.zip || true
             if unzip -tq /tmp/KARBON-source-recovered.zip; then
               echo "Recovered archive is valid"
               mv /tmp/KARBON-source-recovered.zip /tmp/KARBON-source.zip
