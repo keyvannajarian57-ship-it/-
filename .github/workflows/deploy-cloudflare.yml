@@ -2,6 +2,12 @@ name: Deploy KARBON to Cloudflare Workers
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-cloudflare.yml'
+      - 'source/KARBON-source.zip.part.*'
 
 permissions:
   contents: read
