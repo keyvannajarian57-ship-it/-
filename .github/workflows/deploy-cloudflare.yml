@@ -1,0 +1,51 @@
+name: Deploy KARBON to Cloudflare Workers
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source backup
+        uses: actions/checkout@v4
+
+      - name: Reassemble and verify source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat source/KARBON-source.zip.part.* > /tmp/KARBON-source.zip
+          unzip -t /tmp/KARBON-source.zip
+          mkdir -p /tmp/karbon-source
+          unzip -q /tmp/KARBON-source.zip -d /tmp/karbon-source
+          test -f /tmp/karbon-source/app/package.json
+          test -f /tmp/karbon-source/app/wrangler.jsonc
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Install dependencies
+        working-directory: /tmp/karbon-source/app
+        run: bun install --frozen-lockfile
+
+      - name: Configure KARBON Worker
+        working-directory: /tmp/karbon-source/app
+        run: |
+          sed -i 's/app-slug-placeholder/karbon-store/g' wrangler.jsonc
+          sed -i 's/"HF_ENV": "dev"/"HF_ENV": "production"/' wrangler.jsonc
+
+      - name: Build KARBON
+        working-directory: /tmp/karbon-source/app
+        run: bun run build
+
+      - name: Deploy to Cloudflare Workers (Free plan)
+        working-directory: /tmp/karbon-source/app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bunx --yes wrangler@4.157.0 deploy --config wrangler.jsonc
