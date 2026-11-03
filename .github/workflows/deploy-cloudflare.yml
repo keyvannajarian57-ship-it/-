@@ -17,12 +17,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat source/KARBON-source.zip.part.* > /tmp/KARBON-source.zip
-          unzip -t /tmp/KARBON-source.zip
+          echo "Inspecting source chunks"
+          for part in source/KARBON-source.zip.part.*; do
+            printf '%s ' "$part"
+            stat -c '%s bytes' "$part"
+            file "$part"
+            od -An -tx1 -N8 "$part"
+          done
+
           mkdir -p /tmp/karbon-source
+          cat source/KARBON-source.zip.part.* > /tmp/KARBON-source.zip
+          echo "Combined archive size: $(stat -c '%s' /tmp/KARBON-source.zip) bytes"
+          sha256sum /tmp/KARBON-source.zip
+          echo "Testing original archive"
+          if unzip -tq /tmp/KARBON-source.zip; then
+            echo "Original archive is valid"
+          else
+            echo "Standard ZIP check failed; attempting ZIP central-directory recovery"
+            rm -f /tmp/KARBON-source-recovered.zip
+            zip -FF /tmp/KARBON-source.zip --out /tmp/KARBON-source-recovered.zip || true
+            if unzip -tq /tmp/KARBON-source-recovered.zip; then
+              echo "Recovered archive is valid"
+              mv /tmp/KARBON-source-recovered.zip /tmp/KARBON-source.zip
+            else
+              echo "Recovery failed. Archive tail:"
+              tail -c 96 /tmp/KARBON-source.zip | od -An -tx1
+              exit 1
+            fi
+          fi
+
           unzip -q /tmp/KARBON-source.zip -d /tmp/karbon-source
           test -f /tmp/karbon-source/app/package.json
           test -f /tmp/karbon-source/app/wrangler.jsonc
+          echo "Required KARBON source files verified"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
