@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - '.github/workflows/deploy-cloudflare.yml'
-      - 'source/KARBON-source.zip.part.*'
 
 permissions:
   contents: read
@@ -15,48 +14,23 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 15
     steps:
-      - name: Check out source backup
-        uses: actions/checkout@v4
-
-      - name: Reassemble and verify source archive
+      - name: Download verified KARBON source archive
         shell: bash
         run: |
           set -euo pipefail
-          echo "Inspecting source chunks"
-          for part in source/KARBON-source.zip.part.*; do
-            printf '%s ' "$part"
-            stat -c '%s bytes' "$part"
-            file "$part"
-            od -An -tx1 -N8 "$part"
-          done
-
           mkdir -p /tmp/karbon-source
-          cat source/KARBON-source.zip.part.* > /tmp/KARBON-source.zip
-          echo "Combined archive size: $(stat -c '%s' /tmp/KARBON-source.zip) bytes"
-          sha256sum /tmp/KARBON-source.zip
-          echo "Testing original archive"
-          if unzip -tq /tmp/KARBON-source.zip; then
-            echo "Original archive is valid"
-          else
-            echo "Standard ZIP check failed; attempting ZIP central-directory recovery"
-            rm -f /tmp/KARBON-source-recovered.zip
-            yes e | timeout 30s zip -FF /tmp/KARBON-source.zip --out /tmp/KARBON-source-recovered.zip || true
-            if unzip -tq /tmp/KARBON-source-recovered.zip; then
-              echo "Recovered archive is valid"
-              mv /tmp/KARBON-source-recovered.zip /tmp/KARBON-source.zip
-            else
-              echo "Recovery failed. Archive tail:"
-              tail -c 96 /tmp/KARBON-source.zip | od -An -tx1
-              exit 1
-            fi
-          fi
-
+          curl -fL --retry 3 --retry-delay 2 \
+            'https://d2ol7oe51mr4n9.cloudfront.net/user_3L7Gyrf2roms6qLBW7PLnksZgsY/20be3f21-1f7b-43f6-b7a8-8580fb430efa.zip' \
+            -o /tmp/KARBON-source.zip
+          echo "Downloaded archive: $(stat -c '%s' /tmp/KARBON-source.zip) bytes"
+          echo "527cfaeaaac59db34e11365e66e2fa6909365ee06552664db63b6e4049e9940b  /tmp/KARBON-source.zip" | sha256sum -c -
+          unzip -tq /tmp/KARBON-source.zip
           unzip -q /tmp/KARBON-source.zip -d /tmp/karbon-source
           test -f /tmp/karbon-source/app/package.json
           test -f /tmp/karbon-source/app/wrangler.jsonc
-          echo "Required KARBON source files verified"
+          echo "Verified KARBON source files"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
