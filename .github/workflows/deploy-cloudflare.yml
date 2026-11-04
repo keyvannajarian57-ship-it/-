@@ -59,19 +59,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TOKEN="$(printf '%s' "$CLOUDFLARE_API_TOKEN" | tr -d '[:space:]')"
-          TOKEN="${TOKEN#Bearer}"
-          TOKEN="${TOKEN#bearer}"
-          TOKEN="${TOKEN#Authorization:}"
-          TOKEN="${TOKEN#authorization:}"
-          TOKEN="${TOKEN#\"}"
-          TOKEN="${TOKEN%\"}"
-          if [[ ! "$TOKEN" =~ ^[A-Za-z0-9._-]{20,}$ ]]; then
-            echo "Cloudflare API token secret is not in the expected compact token format."
-            echo "Token length after safe normalization: ${#TOKEN}"
-            exit 1
-          fi
-          export CLOUDFLARE_API_TOKEN="$TOKEN"
           export CLOUDFLARE_ACCOUNT_ID="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]')"
-          [[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-fA-F0-9]{32}$ ]]
           bunx --yes wrangler@4.157.0 deploy --config wrangler.jsonc
