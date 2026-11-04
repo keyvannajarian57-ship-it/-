@@ -68,4 +68,5 @@ jobs:
           TOKEN="${TOKEN%\"}"
           export CLOUDFLARE_API_TOKEN="$TOKEN"
           export CLOUDFLARE_ACCOUNT_ID="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]')"
+          bunx --yes wrangler@4.157.0 whoami
           bunx --yes wrangler@4.157.0 deploy --config wrangler.jsonc
